@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropKit AI | Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #0b0f1a;
+            color: #e5e7eb;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+    <div class="text-center">
+        <div id="status-msg" class="text-xs uppercase tracking-[0.3em] text-gray-500 mb-6">Realtime Intent Monitor</div>
+        <div id="total-count" class="text-[96px] md:text-[140px] font-extrabold leading-none">--</div>
+        <div id="success-msg" class="mt-6 text-lg text-gray-400 hidden">验证成功：市场需求已确认</div>
+    </div>
+
+    <script>
+        const S_URL = "https://vlrdiajxxnangawfcgvk.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRpYWp4eG5hbmdhd2ZjZ3ZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTkxNzYyNiwiZXhwIjoyMDg1NDkzNjI2fQ.WJGxW0o_NFa9lgu_tJ1otsxjxI8-3O6RPIkjLMFRYEg";
+
+        const totalEl = document.getElementById('total-count');
+        const successEl = document.getElementById('success-msg');
+
+        function setCount(value) {
+            totalEl.innerText = Number.isFinite(value) ? value.toLocaleString() : '--';
+            if (value >= 20) {
+                totalEl.classList.add('text-green-400');
+                successEl.classList.remove('hidden');
+            } else {
+                totalEl.classList.remove('text-green-400');
+                successEl.classList.add('hidden');
+            }
+        }
+
+        async function fetchTotal() {
+            try {
+                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
+                    method: "HEAD",
+                    headers: {
+                        "apikey": S_KEY,
+                        "Authorization": "Bearer " + S_KEY,
+                        "Prefer": "count=exact"
+                    }
+                });
+
+                const range = res.headers.get('content-range');
+                if (!range) return;
+                const total = parseInt(range.split('/')[1], 10);
+                if (!Number.isNaN(total)) setCount(total);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        fetchTotal();
+        setInterval(fetchTotal, 5000);
+    </script>
+</body>
+</html>
