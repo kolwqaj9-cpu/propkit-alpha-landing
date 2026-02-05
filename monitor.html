@@ -40,27 +40,64 @@
 
         async function fetchTotal() {
             try {
-                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id&limit=1`, {
+                // 使用 GET 请求并设置 Prefer: count=exact 来获取总数
+                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
                     method: "GET",
                     headers: {
                         "apikey": S_KEY,
                         "Authorization": "Bearer " + S_KEY,
                         "Prefer": "count=exact",
-                        "Accept": "application/json"
+                        "Range": "0-0"
                     }
                 });
 
-                if (!res.ok) {
-                    console.error("Supabase error:", res.status, await res.text());
+                if (res.ok) {
+                    // 尝试从 content-range header 获取总数
+                    const range = res.headers.get('content-range');
+                    if (range && range.includes('/')) {
+                        const total = parseInt(range.split('/')[1], 10);
+                        if (!Number.isNaN(total) && total >= 0) {
+                            setCount(total);
+                            return;
+                        }
+                    }
+                    
+                    // 如果 header 没有，尝试解析响应体
+                    try {
+                        const data = await res.json();
+                        if (Array.isArray(data)) {
+                            // 如果返回数组，说明表存在，但可能需要获取全部记录来计数
+                            // 为了性能，我们只在第一次或失败时尝试
+                            const fullRes = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
+                                headers: {
+                                    "apikey": S_KEY,
+                                    "Authorization": "Bearer " + S_KEY
+                                }
+                            });
+                            if (fullRes.ok) {
+                                const fullData = await fullRes.json();
+                                if (Array.isArray(fullData)) {
+                                    setCount(fullData.length);
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (jsonErr) {
+                        console.warn("JSON parse error:", jsonErr);
+                    }
+                } else if (res.status === 404) {
+                    // 表不存在，显示 0
+                    console.warn("Table 'purchase_intents' not found. Showing 0.");
+                    setCount(0);
                     return;
                 }
 
-                const range = res.headers.get('content-range');
-                if (!range) return;
-                const total = parseInt(range.split('/')[1], 10);
-                if (!Number.isNaN(total)) setCount(total);
+                // 其他错误，显示 0
+                console.warn("Failed to fetch count. Status:", res.status);
+                setCount(0);
             } catch (e) {
-                console.error(e);
+                console.error("Fetch error:", e);
+                setCount(0);
             }
         }
 
