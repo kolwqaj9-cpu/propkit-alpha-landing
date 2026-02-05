@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PropKit AI | Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             background: #0b0f1a;
@@ -21,8 +22,12 @@
     </div>
 
     <script>
+        // 初始化 Supabase 客户端
         const S_URL = "https://vlrdiajxxnangawfcgvk.supabase.co";
         const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRpYWp4eG5hbmdhd2ZjZ3ZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTkxNzYyNiwiZXhwIjoyMDg1NDkzNjI2fQ.WJGxW0o_NFa9lgu_tJ1otsxjxI8-3O6RPIkjLMFRYEg";
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(S_URL, S_KEY);
 
         const totalEl = document.getElementById('total-count');
         const successEl = document.getElementById('success-msg');
@@ -45,40 +50,31 @@
         // 初始化显示 0
         setCount(0);
 
+        // 彻底重写：强制使用 RPC 函数，禁止直接查询 purchase_intents 表
         async function fetchTotal() {
             try {
-                // 强制使用 RPC 函数作为唯一数据源，废弃直接查询 purchase_intents 表
-                const rpcRes = await fetch(`${S_URL}/rest/v1/rpc/get_purchase_intents_count`, {
-                    method: "POST",
-                    headers: {
-                        "apikey": S_KEY,
-                        "Authorization": "Bearer " + S_KEY,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({})
-                });
+                const { data, error } = await supabaseClient.rpc('get_purchase_intents_count');
                 
-                if (rpcRes.ok) {
-                    const count = await rpcRes.json();
-                    if (typeof count === 'number' && count >= 0) {
-                        setCount(count);
-                        return;
-                    } else {
-                        console.warn("RPC returned invalid data:", count);
-                        setCount(0);
-                        return;
-                    }
-                } else {
-                    console.error("RPC function failed:", rpcRes.status, await rpcRes.text());
+                if (error) {
+                    console.error('RPC Error:', error);
                     setCount(0);
                     return;
                 }
+                
+                // data 应该是数字（数据库中的 COUNT(*) 结果）
+                if (typeof data === 'number' && data >= 0) {
+                    setCount(data);
+                } else {
+                    console.warn('RPC returned invalid data:', data);
+                    setCount(0);
+                }
             } catch (e) {
-                console.error("Fetch error:", e);
+                console.error('Fetch error:', e);
                 setCount(0);
             }
         }
 
+        // 立即执行一次，然后每 5 秒刷新
         fetchTotal();
         setInterval(fetchTotal, 5000);
     </script>
