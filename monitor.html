@@ -47,85 +47,32 @@
 
         async function fetchTotal() {
             try {
-                // 使用 GET 请求并设置 Prefer: count=exact 来获取总数
-                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
-                    method: "GET",
+                // 强制使用 RPC 函数作为唯一数据源，废弃直接查询 purchase_intents 表
+                const rpcRes = await fetch(`${S_URL}/rest/v1/rpc/get_purchase_intents_count`, {
+                    method: "POST",
                     headers: {
                         "apikey": S_KEY,
                         "Authorization": "Bearer " + S_KEY,
-                        "Prefer": "count=exact",
-                        "Range": "0-0"
-                    }
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({})
                 });
-
-                if (res.ok) {
-                    // 尝试从 content-range header 获取总数
-                    const range = res.headers.get('content-range');
-                    if (range && range.includes('/')) {
-                        const total = parseInt(range.split('/')[1], 10);
-                        if (!Number.isNaN(total) && total >= 0) {
-                            setCount(total);
-                            return;
-                        }
+                
+                if (rpcRes.ok) {
+                    const count = await rpcRes.json();
+                    if (typeof count === 'number' && count >= 0) {
+                        setCount(count);
+                        return;
+                    } else {
+                        console.warn("RPC returned invalid data:", count);
+                        setCount(0);
+                        return;
                     }
-                    
-                    // 如果 header 没有，尝试解析响应体
-                    try {
-                        const data = await res.json();
-                        if (Array.isArray(data)) {
-                            // 如果返回数组，说明表存在，但可能需要获取全部记录来计数
-                            // 为了性能，我们只在第一次或失败时尝试
-                            const fullRes = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
-                                headers: {
-                                    "apikey": S_KEY,
-                                    "Authorization": "Bearer " + S_KEY
-                                }
-                            });
-                            if (fullRes.ok) {
-                                const fullData = await fullRes.json();
-                                if (Array.isArray(fullData)) {
-                                    setCount(fullData.length);
-                                    return;
-                                }
-                            }
-                        }
-                    } catch (jsonErr) {
-                        console.warn("JSON parse error:", jsonErr);
-                    }
-                } else if (res.status === 404) {
-                    // Schema cache 可能还没刷新，尝试使用 RPC 函数
-                    console.warn("Table not found via REST API, trying RPC function...");
-                    try {
-                        const rpcRes = await fetch(`${S_URL}/rest/v1/rpc/get_purchase_intents_count`, {
-                            method: "POST",
-                            headers: {
-                                "apikey": S_KEY,
-                                "Authorization": "Bearer " + S_KEY,
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({})
-                        });
-                        
-                        if (rpcRes.ok) {
-                            const count = await rpcRes.json();
-                            if (typeof count === 'number') {
-                                setCount(count);
-                                return;
-                            }
-                        }
-                    } catch (rpcErr) {
-                        console.warn("RPC function also failed:", rpcErr);
-                    }
-                    
-                    // 如果 RPC 也失败，显示 0
-                    console.warn("Table 'purchase_intents' not found. Showing 0.");
+                } else {
+                    console.error("RPC function failed:", rpcRes.status, await rpcRes.text());
                     setCount(0);
                     return;
                 }
-
-                // 其他错误，显示 0
-                console.warn("Failed to fetch count. Status:", res.status);
-                setCount(0);
             } catch (e) {
                 console.error("Fetch error:", e);
                 setCount(0);
