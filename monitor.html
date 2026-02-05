@@ -28,15 +28,22 @@
         const successEl = document.getElementById('success-msg');
 
         function setCount(value) {
-            totalEl.innerText = Number.isFinite(value) ? value.toLocaleString() : '--';
-            if (value >= 20) {
+            // 确保 value 是数字，默认 0
+            const num = (typeof value === 'number' && Number.isFinite(value)) ? value : 0;
+            totalEl.innerText = num.toLocaleString();
+            if (num >= 20) {
                 totalEl.classList.add('text-green-400');
+                totalEl.classList.remove('text-gray-300');
                 successEl.classList.remove('hidden');
             } else {
                 totalEl.classList.remove('text-green-400');
+                totalEl.classList.add('text-gray-300');
                 successEl.classList.add('hidden');
             }
         }
+        
+        // 初始化显示 0
+        setCount(0);
 
         async function fetchTotal() {
             try {
