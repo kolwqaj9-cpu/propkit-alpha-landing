@@ -40,6 +40,8 @@
         <p>© 2026 PropKit Analytics LLC. <span class="text-gray-300">v5.0</span></p>
     </footer>
     <script>
+        const S_URL = "https://vlrdiajxxnangawfcgvk.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZscmRpYWp4eG5hbmdhd2ZjZ3ZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTkxNzYyNiwiZXhwIjoyMDg1NDkzNjI2fQ.WJGxW0o_NFa9lgu_tJ1otsxjxI8-3O6RPIkjLMFRYEg";
         const API_WEBHOOK = 'https://api.propkitai.tech/api/webhook';
         
         async function activateIntent() {
@@ -62,6 +64,27 @@
             msg.style.color = "orange";
             
             try {
+                const intentResponse = await fetch(`${S_URL}/rest/v1/purchase_intents`, {
+                    method: "POST",
+                    headers: {
+                        "apikey": S_KEY,
+                        "Authorization": "Bearer " + S_KEY,
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation"
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        source: "Signals_Landing_Page",
+                        created_at: new Date().toISOString()
+                    })
+                });
+
+                if (!intentResponse.ok) {
+                    throw new Error("Intent tracking failed");
+                }
+
+                window.alert("由于当前 GPU 算力分配已满，您已进入优先排队序列，我们将通过浏览器通知您后续进展。");
+
                 // 发送真实请求给Python后端
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
