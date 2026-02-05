@@ -93,7 +93,31 @@
                         console.warn("JSON parse error:", jsonErr);
                     }
                 } else if (res.status === 404) {
-                    // 表不存在，显示 0
+                    // Schema cache 可能还没刷新，尝试使用 RPC 函数
+                    console.warn("Table not found via REST API, trying RPC function...");
+                    try {
+                        const rpcRes = await fetch(`${S_URL}/rest/v1/rpc/get_purchase_intents_count`, {
+                            method: "POST",
+                            headers: {
+                                "apikey": S_KEY,
+                                "Authorization": "Bearer " + S_KEY,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({})
+                        });
+                        
+                        if (rpcRes.ok) {
+                            const count = await rpcRes.json();
+                            if (typeof count === 'number') {
+                                setCount(count);
+                                return;
+                            }
+                        }
+                    } catch (rpcErr) {
+                        console.warn("RPC function also failed:", rpcErr);
+                    }
+                    
+                    // 如果 RPC 也失败，显示 0
                     console.warn("Table 'purchase_intents' not found. Showing 0.");
                     setCount(0);
                     return;
