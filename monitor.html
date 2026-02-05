@@ -40,14 +40,20 @@
 
         async function fetchTotal() {
             try {
-                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id`, {
-                    method: "HEAD",
+                const res = await fetch(`${S_URL}/rest/v1/purchase_intents?select=id&limit=1`, {
+                    method: "GET",
                     headers: {
                         "apikey": S_KEY,
                         "Authorization": "Bearer " + S_KEY,
-                        "Prefer": "count=exact"
+                        "Prefer": "count=exact",
+                        "Accept": "application/json"
                     }
                 });
+
+                if (!res.ok) {
+                    console.error("Supabase error:", res.status, await res.text());
+                    return;
+                }
 
                 const range = res.headers.get('content-range');
                 if (!range) return;
